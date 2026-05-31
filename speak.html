@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Speak</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, sans-serif;
+    background: #f5f5f3;
+    color: #1a1a18;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a18; color: #e8e6df; }
+    textarea { background: #232320; border-color: #3a3a37; color: #e8e6df; }
+    textarea:focus { border-color: #666660; }
+    button { background: #232320; border-color: #3a3a37; color: #e8e6df; }
+    button:hover { background: #2e2e2b; }
+    button.primary { background: #e8e6df; color: #1a1a18; }
+    button.primary:hover { background: #ccc; }
+    .card { background: #232320; border-color: #3a3a37; }
+    .status { color: #888; }
+    .status.speaking { color: #4caf7d; }
+    label { color: #aaa; }
+  }
+  .card {
+    background: #fff;
+    border: 0.5px solid #ddddd8;
+    border-radius: 14px;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 620px;
+  }
+  h1 {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    letter-spacing: -0.01em;
+  }
+  textarea {
+    width: 100%;
+    height: 200px;
+    padding: 12px 14px;
+    font-size: 15px;
+    font-family: system-ui, sans-serif;
+    color: inherit;
+    background: #fafaf8;
+    border: 0.5px solid #ddddd8;
+    border-radius: 10px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.6;
+    transition: border-color 0.15s;
+  }
+  textarea:focus { border-color: #999; }
+  textarea::placeholder { color: #aaa; }
+  .row { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 0 16px; height: 36px;
+    font-size: 13px; font-weight: 500;
+    font-family: system-ui, sans-serif;
+    color: inherit;
+    background: #fff;
+    border: 0.5px solid #ccc;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.1s, transform 0.1s;
+  }
+  button:hover { background: #f5f5f3; }
+  button:active { transform: scale(0.98); }
+  button.primary {
+    background: #1a1a18;
+    color: #fff;
+    border-color: transparent;
+  }
+  button.primary:hover { background: #333; }
+  button:disabled { opacity: 0.35; cursor: default; transform: none; }
+  .status {
+    font-size: 13px;
+    color: #888;
+    margin-left: auto;
+  }
+  .status.speaking { color: #2e7d4f; font-weight: 500; }
+  .controls {
+    display: flex; align-items: center; gap: 20px;
+    margin-top: 14px; flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 0.5px solid #eee;
+  }
+  @media (prefers-color-scheme: dark) {
+    .controls { border-top-color: #3a3a37; }
+  }
+  .ctrl { display: flex; align-items: center; gap: 8px; }
+  label { font-size: 13px; color: #777; }
+  input[type=range] { width: 100px; cursor: pointer; }
+  .val { font-size: 13px; font-weight: 500; min-width: 32px; }
+  #no-support {
+    margin-top: 1rem; font-size: 13px;
+    color: #c0392b; display: none;
+  }
+  svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Text to speech</h1>
+  <textarea id="txt" placeholder="Paste text here… (Ctrl+Enter to speak)" spellcheck="false"></textarea>
+  <div class="row">
+    <button class="primary" id="btn-speak" onclick="speak()">
+      <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Speak
+    </button>
+    <button id="btn-stop" onclick="stopSpeaking()" disabled>
+      <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      Stop
+    </button>
+    <button onclick="clearText()">
+      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+      Clear
+    </button>
+    <span class="status" id="status">Ready</span>
+  </div>
+  <div class="controls">
+    <div class="ctrl">
+      <label for="rate">Speed</label>
+      <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1"
+        oninput="document.getElementById('rval').textContent=parseFloat(this.value).toFixed(1)+'×'">
+      <span class="val" id="rval">1.0×</span>
+    </div>
+    <div class="ctrl">
+      <label for="pitch">Pitch</label>
+      <input type="range" id="pitch" min="0.5" max="2" step="0.1" value="1"
+        oninput="document.getElementById('pval').textContent=parseFloat(this.value).toFixed(1)">
+      <span class="val" id="pval">1.0</span>
+    </div>
+  </div>
+  <div id="no-support">Your browser does not support the Web Speech API.</div>
+</div>
+
+<script>
+const synth = window.speechSynthesis;
+if (!synth) document.getElementById('no-support').style.display = 'block';
+
+function speak() {
+  const txt = document.getElementById('txt').value.trim();
+  if (!txt || !synth) return;
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(txt);
+  u.rate = parseFloat(document.getElementById('rate').value);
+  u.pitch = parseFloat(document.getElementById('pitch').value);
+  u.onstart = () => {
+    setStatus('Speaking…', true);
+    document.getElementById('btn-speak').disabled = true;
+    document.getElementById('btn-stop').disabled = false;
+  };
+  u.onend = u.onerror = () => {
+    setStatus('Done');
+    document.getElementById('btn-speak').disabled = false;
+    document.getElementById('btn-stop').disabled = true;
+  };
+  synth.speak(u);
+}
+
+function stopSpeaking() {
+  synth.cancel();
+  setStatus('Stopped');
+  document.getElementById('btn-speak').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+}
+
+function clearText() {
+  document.getElementById('txt').value = '';
+  document.getElementById('txt').focus();
+}
+
+function setStatus(msg, speaking) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status' + (speaking ? ' speaking' : '');
+}
+
+document.getElementById('txt').addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') speak();
+});
+</script>
+</body>
+</html>
